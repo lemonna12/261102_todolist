@@ -5,6 +5,8 @@ from datetime import date
 from flask import Flask, g, redirect, render_template, request, url_for, flash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# DATABASE_URL(Supabase Postgres)이 있으면 Postgres, 없으면 SQLite 사용
+DATABASE_URL = os.environ.get("DATABASE_URL")
 # Vercel 서버리스 환경은 /tmp 만 쓰기 가능 (재시작 시 데이터 초기화됨)
 if os.environ.get("VERCEL"):
     DATABASE = "/tmp/todo.db"
@@ -18,10 +20,35 @@ app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret-key")
 PRIORITIES = {"high": "높음", "medium": "보통", "low": "낮음"}
 
 
+class PostgresDB:
+    """sqlite3 연결과 같은 방식(execute/commit/close)으로 쓰기 위한 래퍼"""
+
+    def __init__(self):
+        import psycopg
+        from psycopg.rows import dict_row
+
+        # Supabase 트랜잭션 풀러(6543)는 prepared statement를 지원하지 않음
+        self.conn = psycopg.connect(
+            DATABASE_URL, row_factory=dict_row, prepare_threshold=None
+        )
+
+    def execute(self, sql, params=()):
+        return self.conn.execute(sql.replace("?", "%s"), params)
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
+        if DATABASE_URL:
+            g.db = PostgresDB()
+        else:
+            g.db = sqlite3.connect(DATABASE)
+            g.db.row_factory = sqlite3.Row
     return g.db
 
 
@@ -33,6 +60,25 @@ def close_db(exception):
 
 
 def init_db():
+    if DATABASE_URL:
+        db = PostgresDB()
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS todos (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                memo TEXT DEFAULT '',
+                priority TEXT NOT NULL DEFAULT 'medium',
+                due_date TEXT,
+                done INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        db.commit()
+        db.close()
+        return
+
     with sqlite3.connect(DATABASE) as db:
         db.execute(
             """
