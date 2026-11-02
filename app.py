@@ -5,10 +5,15 @@ from datetime import date
 from flask import Flask, g, redirect, render_template, request, url_for, flash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, "todo.db")
+# Vercel 서버리스 환경은 /tmp 만 쓰기 가능 (재시작 시 데이터 초기화됨)
+if os.environ.get("VERCEL"):
+    DATABASE = "/tmp/todo.db"
+else:
+    DATABASE = os.path.join(BASE_DIR, "todo.db")
 
-app = Flask(__name__)
-app.secret_key = "change-this-secret-key"
+# 정적 파일은 public/ 아래에 두어야 Vercel CDN이 서빙함
+app = Flask(__name__, static_folder="public/static", static_url_path="/static")
+app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret-key")
 
 PRIORITIES = {"high": "높음", "medium": "보통", "low": "낮음"}
 
