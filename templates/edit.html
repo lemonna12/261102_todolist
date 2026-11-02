@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}할일 수정{% endblock %}
+{% block content %}
+
+<section class="card">
+  <h2>할일 수정</h2>
+  <form method="post" class="add-form">
+    <input type="text" name="title" value="{{ todo.title }}" required>
+    <div class="row">
+      <select name="priority">
+        {% for key, label in priorities.items() %}
+          <option value="{{ key }}" {% if key == todo.priority %}selected{% endif %}>우선순위: {{ label }}</option>
+        {% endfor %}
+      </select>
+      <input type="date" name="due_date" value="{{ todo.due_date or '' }}">
+    </div>
+    <textarea name="memo" rows="3" placeholder="메모 (선택)">{{ todo.memo }}</textarea>
+    <div class="row">
+      <button type="submit" class="btn primary">저장</button>
+      <a href="{{ url_for('index') }}" class="btn">취소</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

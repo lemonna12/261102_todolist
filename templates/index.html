@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <form action="{{ url_for('add') }}" method="post" class="add-form">
+    <input type="text" name="title" placeholder="할일을 입력하세요" required autofocus>
+    <div class="row">
+      <select name="priority">
+        {% for key, label in priorities.items() %}
+          <option value="{{ key }}" {% if key == 'medium' %}selected{% endif %}>우선순위: {{ label }}</option>
+        {% endfor %}
+      </select>
+      <input type="date" name="due_date">
+    </div>
+    <textarea name="memo" rows="2" placeholder="메모 (선택)"></textarea>
+    <button type="submit" class="btn primary">추가</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="toolbar">
+    <nav class="tabs">
+      <a href="{{ url_for('index', status='all', q=keyword) }}" class="{% if status == 'all' %}active{% endif %}">전체</a>
+      <a href="{{ url_for('index', status='active', q=keyword) }}" class="{% if status == 'active' %}active{% endif %}">진행중</a>
+      <a href="{{ url_for('index', status='done', q=keyword) }}" class="{% if status == 'done' %}active{% endif %}">완료</a>
+    </nav>
+    <form method="get" class="search">
+      <input type="hidden" name="status" value="{{ status }}">
+      <input type="text" name="q" value="{{ keyword }}" placeholder="검색">
+    </form>
+  </div>
+
+  <div class="progress-info">
+    완료 {{ done_count }} / 전체 {{ total }}
+    <div class="progress"><div class="bar" style="width: {{ (done_count / total * 100) if total else 0 }}%"></div></div>
+  </div>
+
+  {% if todos %}
+  <ul class="todo-list">
+    {% for t in todos %}
+    <li class="todo {% if t.done %}done{% endif %}">
+      <form action="{{ url_for('toggle', todo_id=t.id) }}" method="post">
+        <button type="submit" class="check" title="완료 전환">{% if t.done %}✔{% endif %}</button>
+      </form>
+      <div class="body">
+        <div class="title">{{ t.title }}</div>
+        {% if t.memo %}<div class="memo">{{ t.memo }}</div>{% endif %}
+        <div class="meta">
+          <span class="badge {{ t.priority }}">{{ priorities[t.priority] }}</span>
+          {% if t.due_date %}
+            <span class="due {% if not t.done and t.due_date < today %}overdue{% endif %}">📅 {{ t.due_date }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="actions">
+        <a href="{{ url_for('edit', todo_id=t.id) }}" class="btn small">수정</a>
+        <form action="{{ url_for('delete', todo_id=t.id) }}" method="post" onsubmit="return confirm('삭제할까요?');">
+          <button type="submit" class="btn small danger">삭제</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p class="empty">할일이 없습니다.</p>
+  {% endif %}
+
+  {% if done_count %}
+  <form action="{{ url_for('clear_done') }}" method="post" onsubmit="return confirm('완료된 할일을 모두 삭제할까요?');" class="clear">
+    <button type="submit" class="btn small danger">완료 항목 모두 삭제</button>
+  </form>
+  {% endif %}
+</section>
+
+{% endblock %}
